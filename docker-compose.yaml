@@ -1,0 +1,61 @@
+version: "3.9"
+services:
+  mitmdump:
+    image: mitmproxy/mitmproxy
+    hostname: mitmproxy
+    networks:
+      - pm_notifier-net
+      - pm_traefik-net
+    volumes:
+      - ./data/:/data/
+      - type: bind
+        source: ./mitm/log_http_requests.py
+        target: /log_http_requests.py
+      - type: bind
+        source: ./logs/mitm/http.log
+        target: /http.log
+    command: sh -c "pip install requests && mitmdump -s /log_http_requests.py --mode reverse:http://nginx-server:8000 -p 30001 --set block_global=false"
+  server:
+    image: nginx
+    hostname: nginx-server
+    networks:
+      - pm_notifier-net
+    volumes:
+      - ./www/:/var/www/html/
+      - type: bind
+        source: ./conf/nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+    depends_on:
+      - mitmdump
+    links:
+      - php
+  php:
+    image: php:7-fpm
+    networks:
+      - pm_notifier-net
+    volumes:
+      - ./data/:/data/
+      - ./www/:/var/www/html/
+  dns-monitor:
+    image: python:3.7-alpine
+    restart: always
+    networks:
+      - pm_notifier-net
+    volumes:
+      - ./data/:/data/
+      - powerdns-logs:/logs/pdns
+      - type: bind
+        source: ./dns/monitor.py
+        target: /monitor.py
+      - ./logs/dns/:/var/log/named/
+    command: sh -c 'pip3 install requests && python3 /monitor.py'
+
+volumes:
+  powerdns-logs:
+    external: true
+
+networks:
+  pm_notifier-net:
+
+  pm_traefik-net:
+    external: true
