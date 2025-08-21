@@ -1,6 +1,8 @@
 version: "3.9"
 services:
+
   mitmdump:
+    env_file: ".env"
     image: mitmproxy/mitmproxy
     hostname: mitmproxy
     networks:
@@ -16,6 +18,7 @@ services:
         target: /http.log
     command: sh -c "pip install requests && mitmdump -s /log_http_requests.py --mode reverse:http://nginx-server:8000 -p 30001 --set block_global=false"
   server:
+    env_file: ".env"
     image: nginx
     hostname: nginx-server
     networks:
@@ -30,6 +33,7 @@ services:
     links:
       - php
   php:
+    env_file: ".env"
     image: php:7-fpm
     networks:
       - pm_notifier-net
@@ -37,6 +41,7 @@ services:
       - ./data/:/data/
       - ./www/:/var/www/html/
   dns-monitor:
+    env_file: ".env"
     image: python:3.7-alpine
     restart: always
     networks:
